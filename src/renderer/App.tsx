@@ -12,7 +12,6 @@ import Header from './components/Header';
 import URLInputSection from './components/URLInputSection';
 import SettingsSection from './components/SettingsSection';
 import ProgressSection from './components/ProgressSection';
-import ControlSection from './components/ControlSection';
 import LogSection from './components/LogSection';
 
 // 타입 정의
@@ -45,13 +44,13 @@ interface AppState {
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
     urls: [],
-    quality: 'best[ext=mp4]/best',
+    quality: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best', // 최고 품질 병합 (FFmpeg 필요)
     outputPath: '',
     isDownloading: false,
     ffmpegInstalled: false,
     downloadProgress: null,
     logs: [],
-    showLogs: true,
+    showLogs: false, // 기본값을 로그 숨기기로 변경
     notification: {
       open: false,
       message: '',
@@ -234,7 +233,7 @@ const App: React.FC = () => {
     setState(prev => ({ ...prev, urls }));
   };
 
-  const handleAddToQueue = (newUrls: string[]) => {
+  const handleAddToQueue = async (newUrls: string[]) => {
     // 다운로드 중일 때 새로운 URL을 기존 목록에 추가
     setState(prev => ({
       ...prev,
@@ -246,7 +245,19 @@ const App: React.FC = () => {
       addLog(`🔄 다운로드 큐에 추가됨: ${url}`);
     });
     
-    showNotification(`${newUrls.length}개의 URL이 다운로드 큐에 추가되었습니다.`, 'success');
+    // 백엔드에 다운로드 요청 전송 (큐에 추가)
+    try {
+      const result = await window.electronAPI.startDownload(newUrls, state.quality, state.outputPath);
+      
+      if (result.success) {
+        showNotification(`${newUrls.length}개의 URL이 다운로드 큐에 추가되었습니다.`, 'success');
+      } else {
+        showNotification(result.error || '큐 추가 중 오류가 발생했습니다.', 'error');
+      }
+    } catch (error) {
+      console.error('큐 추가 오류:', error);
+      showNotification('큐 추가 중 오류가 발생했습니다.', 'error');
+    }
   };
 
   const handleQualityChange = (quality: string) => {
@@ -348,14 +359,8 @@ const App: React.FC = () => {
           flexDirection: 'column', 
           gap: { xs: 1, sm: 2 }, 
           mt: { xs: 1, sm: 2 },
-          // 로그가 보일 때는 flex: 1로 전체 공간 사용, 숨겨질 때는 내용에 맞춰 크기 조절
-          ...(state.showLogs ? { 
-            flex: 1,
-            minHeight: 0,
-            overflow: 'hidden'
-          } : {
-            flex: 'none'
-          })
+          flex: 1,
+          minHeight: 0
         }}>
           {/* URL 입력 섹션 */}
           <motion.div
@@ -369,6 +374,12 @@ const App: React.FC = () => {
               disabled={false} // 다운로드 중에도 URL 입력 가능
               isDownloading={state.isDownloading}
               onAddToQueue={handleAddToQueue}
+              onStartDownload={handleStartDownload}
+              onStopDownload={handleStopDownload}
+              onToggleLogs={handleToggleLogs}
+              onClearLogs={handleClearLogs}
+              showLogs={state.showLogs}
+              outputPath={state.outputPath}
             />
           </motion.div>
 
@@ -388,21 +399,7 @@ const App: React.FC = () => {
             />
           </motion.div>
 
-          {/* 컨트롤 섹션 */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
-            <ControlSection
-              isDownloading={state.isDownloading}
-              onStartDownload={handleStartDownload}
-              onStopDownload={handleStopDownload}
-              onClearLogs={handleClearLogs}
-              onToggleLogs={handleToggleLogs}
-              showLogs={state.showLogs}
-            />
-          </motion.div>
+
 
           {/* 진행률 섹션 */}
           {(state.isDownloading || state.downloadProgress) && (

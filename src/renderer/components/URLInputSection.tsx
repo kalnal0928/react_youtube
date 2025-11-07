@@ -5,11 +5,18 @@ import {
   TextField,
   Chip,
   Paper,
-  Alert
+  Alert,
+  Button
 } from '@mui/material';
 import {
   Link as LinkIcon,
-  ContentPaste as PasteIcon
+  ContentPaste as PasteIcon,
+  PlayArrow as PlayIcon,
+  Stop as StopIcon,
+  Clear as ClearIcon,
+  VisibilityOff as HideIcon,
+  Visibility as ShowIcon,
+  FolderOpen as FolderOpenIcon
 } from '@mui/icons-material';
 
 interface URLInputSectionProps {
@@ -18,6 +25,12 @@ interface URLInputSectionProps {
   disabled?: boolean;
   isDownloading?: boolean;
   onAddToQueue?: (urls: string[]) => void;
+  onStartDownload?: () => void;
+  onStopDownload?: () => void;
+  onToggleLogs?: () => void;
+  onClearLogs?: () => void;
+  showLogs?: boolean;
+  outputPath?: string;
 }
 
 const URLInputSection: React.FC<URLInputSectionProps> = ({
@@ -25,13 +38,45 @@ const URLInputSection: React.FC<URLInputSectionProps> = ({
   onURLsChange,
   disabled = false,
   isDownloading = false,
-  onAddToQueue
+  onAddToQueue,
+  onStartDownload,
+  onStopDownload,
+  onToggleLogs,
+  onClearLogs,
+  showLogs = false,
+  outputPath = ''
 }) => {
   const [inputValue, setInputValue] = useState('');
   const [urlCount, setUrlCount] = useState(0);
 
   useEffect(() => {
     setUrlCount(urls.length);
+  }, [urls]);
+
+  // urls가 변경되면 inputValue도 업데이트 (다운로드 완료 시 URL 제거)
+  useEffect(() => {
+    if (urls.length === 0) {
+      // 모든 URL이 제거되면 입력창도 비우기
+      setInputValue('');
+    } else {
+      // 현재 입력창의 URL과 상태의 URL을 비교하여 동기화
+      const currentUrls = parseURLs(inputValue);
+      
+      // 상태에 없는 URL은 입력창에서도 제거
+      const remainingUrls = currentUrls.filter(url => urls.includes(url));
+      
+      if (remainingUrls.length !== currentUrls.length) {
+        // URL이 제거되었으면 입력창 업데이트
+        const newText = remainingUrls.join('\n');
+        setInputValue(newText);
+        
+        // 번호 추가
+        setTimeout(() => {
+          const numberedText = addNumbersToText(newText);
+          setInputValue(numberedText);
+        }, 100);
+      }
+    }
   }, [urls]);
 
   const isValidYouTubeURL = (url: string): boolean => {
@@ -156,31 +201,20 @@ const URLInputSection: React.FC<URLInputSectionProps> = ({
     }
   };
 
-  const handlePaste = async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      const currentText = inputValue;
-      const newText = currentText ? `${currentText}\n${text}` : text;
-      
-      setInputValue(newText);
-      
-      const parsedUrls = parseURLs(newText);
-      onURLsChange(parsedUrls);
-      
-      // 번호 추가
-      setTimeout(() => {
-        const numberedText = addNumbersToText(newText);
-        setInputValue(numberedText);
-      }, 100);
-    } catch (error) {
-      console.error('클립보드 읽기 실패:', error);
-    }
-  };
+
 
   const getUrlCountColor = () => {
     if (urlCount === 0) return 'default';
     if (urlCount > 10) return 'error';
     return 'success';
+  };
+
+  const handleOpenFolder = async () => {
+    try {
+      await window.electronAPI.openFolder(outputPath);
+    } catch (error) {
+      console.error('폴더 열기 오류:', error);
+    }
   };
 
   return (
@@ -296,6 +330,101 @@ https://youtu.be/VIDEO_ID`}
           최대 10개의 URL만 입력할 수 있습니다. 현재 {urlCount}개가 입력되었습니다.
         </Alert>
       )}
+
+      {/* 컨트롤 버튼들 */}
+      <Box sx={{ 
+        display: 'flex', 
+        gap: { xs: 1, sm: 2 }, 
+        justifyContent: 'center',
+        flexDirection: { xs: 'column', sm: 'row' },
+        mt: 2,
+        pt: 2,
+        borderTop: '1px solid',
+        borderColor: 'divider'
+      }}>
+        <Button
+          variant="contained"
+          size="large"
+          onClick={onStartDownload}
+          disabled={isDownloading}
+          startIcon={<PlayIcon />}
+          sx={{
+            minWidth: { xs: 'auto', sm: 150 },
+            fontSize: { xs: '0.875rem', sm: '1rem' },
+            padding: { xs: '8px 16px', sm: '12px 24px' },
+            bgcolor: 'success.main',
+            whiteSpace: 'nowrap',
+            '&:hover': {
+              bgcolor: 'success.dark',
+            },
+          }}
+        >
+          다운로드 시작
+        </Button>
+
+        <Button
+          variant="contained"
+          size="large"
+          onClick={onStopDownload}
+          disabled={!isDownloading}
+          startIcon={<StopIcon />}
+          color="error"
+          sx={{ 
+            minWidth: { xs: 'auto', sm: 120 },
+            fontSize: { xs: '0.875rem', sm: '1rem' },
+            padding: { xs: '8px 16px', sm: '12px 24px' },
+            whiteSpace: 'nowrap'
+          }}
+        >
+          정지
+        </Button>
+
+        <Button
+          variant="outlined"
+          size="large"
+          onClick={onToggleLogs}
+          startIcon={showLogs ? <HideIcon /> : <ShowIcon />}
+          sx={{ 
+            minWidth: { xs: 'auto', sm: 120 },
+            fontSize: { xs: '0.875rem', sm: '1rem' },
+            padding: { xs: '8px 16px', sm: '12px 24px' },
+            whiteSpace: 'nowrap'
+          }}
+        >
+          로그 {showLogs ? '숨기기' : '보기'}
+        </Button>
+
+        <Button
+          variant="outlined"
+          size="large"
+          onClick={onClearLogs}
+          startIcon={<ClearIcon />}
+          sx={{ 
+            minWidth: { xs: 'auto', sm: 120 },
+            fontSize: { xs: '0.875rem', sm: '1rem' },
+            padding: { xs: '8px 16px', sm: '12px 24px' },
+            whiteSpace: 'nowrap'
+          }}
+        >
+          로그 지우기
+        </Button>
+
+        <Button
+          variant="outlined"
+          size="large"
+          onClick={handleOpenFolder}
+          startIcon={<FolderOpenIcon />}
+          color="primary"
+          sx={{ 
+            minWidth: { xs: 'auto', sm: 120 },
+            fontSize: { xs: '0.875rem', sm: '1rem' },
+            padding: { xs: '8px 16px', sm: '12px 24px' },
+            whiteSpace: 'nowrap'
+          }}
+        >
+          폴더 열기
+        </Button>
+      </Box>
     </Paper>
   );
 };

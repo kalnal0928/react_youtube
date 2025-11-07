@@ -13,6 +13,9 @@ let mainWindow: BrowserWindow | null = null;
 // 다운로드 프로세스 관리
 let downloadProcess: ChildProcess | null = null;
 let isDownloading = false;
+let downloadQueue: string[] = []; // 다운로드 큐
+let currentQuality = '';
+let currentOutputPath = '';
 
 function createWindow(): void {
   // 메인 윈도우 생성
@@ -28,8 +31,12 @@ function createWindow(): void {
     },
     icon: path.join(__dirname, '../../assets/icon.png'),
     show: false,
-    titleBarStyle: 'default'
+    titleBarStyle: 'default',
+    autoHideMenuBar: true // 메뉴바 자동 숨김
   });
+
+  // 메뉴바 완전히 제거
+  mainWindow.setMenuBarVisibility(false);
 
   // 개발 환경에서는 개발 서버 로드, 프로덕션에서는 빌드된 파일 로드
   if (isDev) {
@@ -157,11 +164,17 @@ function getYtDlpPath(): string {
 // 다운로드 시작
 ipcMain.handle('start-download', async (_, urls: string[], quality: string, outputPath: string) => {
   if (isDownloading) {
-    return { success: false, error: '이미 다운로드가 진행 중입니다.' };
+    // 이미 다운로드 중이면 큐에 추가
+    downloadQueue.push(...urls);
+    return { success: true, message: '다운로드 큐에 추가되었습니다.' };
   }
 
   try {
     isDownloading = true;
+    currentQuality = quality;
+    currentOutputPath = outputPath;
+    downloadQueue = [...urls]; // 큐 초기화
+    
     const ytDlpPath = getYtDlpPath();
     
     // yt-dlp 존재 확인
@@ -176,26 +189,27 @@ ipcMain.handle('start-download', async (_, urls: string[], quality: string, outp
 
     // 다운로드 시작 알림
     if (mainWindow) {
-      mainWindow.webContents.send('download-started', { totalCount: urls.length });
+      mainWindow.webContents.send('download-started', { totalCount: downloadQueue.length });
     }
 
     let successCount = 0;
     let failCount = 0;
+    let processedIndex = 0;
 
-    // 각 URL을 순차적으로 다운로드
-    for (let i = 0; i < urls.length; i++) {
-      const url = urls[i];
+    // 큐가 비어있지 않은 동안 계속 다운로드
+    while (downloadQueue.length > 0) {
+      const url = downloadQueue.shift()!; // 큐에서 첫 번째 URL 가져오기
       
       if (mainWindow) {
         mainWindow.webContents.send('download-progress', {
-          currentIndex: i,
-          totalCount: urls.length,
+          currentIndex: processedIndex,
+          totalCount: processedIndex + downloadQueue.length + 1,
           currentUrl: url,
           status: 'starting'
         });
       }
 
-      const success = await downloadSingleVideo(url, quality, outputPath, i + 1, urls.length);
+      const success = await downloadSingleVideo(url, currentQuality, currentOutputPath, processedIndex + 1, processedIndex + downloadQueue.length + 1);
       
       if (success) {
         successCount++;
@@ -208,6 +222,8 @@ ipcMain.handle('start-download', async (_, urls: string[], quality: string, outp
           mainWindow.webContents.send('download-completed', { url, success: false });
         }
       }
+      
+      processedIndex++;
     }
 
     // 완료 알림
@@ -215,7 +231,7 @@ ipcMain.handle('start-download', async (_, urls: string[], quality: string, outp
       mainWindow.webContents.send('all-downloads-completed', {
         successCount,
         failCount,
-        totalCount: urls.length
+        totalCount: successCount + failCount
       });
     }
 
@@ -228,10 +244,12 @@ ipcMain.handle('start-download', async (_, urls: string[], quality: string, outp
     }
 
     isDownloading = false;
+    downloadQueue = []; // 큐 초기화
     return { success: true, successCount, failCount };
 
   } catch (error) {
     isDownloading = false;
+    downloadQueue = []; // 큐 초기화
     return { success: false, error: error instanceof Error ? error.message : '알 수 없는 오류' };
   }
 });
@@ -322,6 +340,7 @@ ipcMain.handle('stop-download', async () => {
     downloadProcess = null;
   }
   isDownloading = false;
+  downloadQueue = []; // 큐 초기화
   return true;
 });
 

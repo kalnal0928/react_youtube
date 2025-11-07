@@ -10,14 +10,11 @@ import {
   FormControlLabel,
   Radio,
   Paper,
-  Alert,
-  IconButton,
-  Tooltip
+  Alert
 } from '@mui/material';
 import {
   Settings as SettingsIcon,
-  FolderOpen as FolderIcon,
-  Launch as LaunchIcon
+  FolderOpen as FolderIcon
 } from '@mui/icons-material';
 
 interface SettingsSectionProps {
@@ -76,14 +73,6 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
     }
   };
 
-  const handleOpenFolder = async () => {
-    try {
-      await window.electronAPI.openFolder(outputPath);
-    } catch (error) {
-      console.error('폴더 열기 오류:', error);
-    }
-  };
-
   return (
     <Paper sx={{ p: { xs: 2, sm: 3 } }}>
       {/* 헤더 */}
@@ -118,39 +107,18 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
               size="small"
               sx={{ flex: 1 }}
             />
-            <Box sx={{ 
-              display: 'flex', 
-              gap: 1,
-              flexShrink: 0
-            }}>
-              <Button
-                variant="outlined"
-                onClick={handleBrowseFolder}
-                disabled={disabled}
-                startIcon={<FolderIcon />}
-                sx={{ 
-                  minWidth: { xs: 'auto', sm: 120 },
-                  flex: { xs: 1, sm: 'none' }
-                }}
-              >
-                {/* 작은 화면에서는 텍스트 줄임 */}
-                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
-                  찾아보기
-                </Box>
-                <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
-                  폴더
-                </Box>
-              </Button>
-              <Tooltip title="폴더 열기">
-                <IconButton
-                  onClick={handleOpenFolder}
-                  disabled={disabled}
-                  color="primary"
-                >
-                  <LaunchIcon />
-                </IconButton>
-              </Tooltip>
-            </Box>
+            <Button
+              variant="outlined"
+              onClick={handleBrowseFolder}
+              disabled={disabled}
+              startIcon={<FolderIcon />}
+              sx={{ 
+                minWidth: { xs: 'auto', sm: 120 },
+                flexShrink: 0
+              }}
+            >
+              찾아보기
+            </Button>
           </Box>
         </Box>
 
