@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
-  Typography,
-  Paper,
   Alert,
   Snackbar
 } from '@mui/material';
@@ -36,6 +34,7 @@ interface AppState {
   ffmpegInstalled: boolean;
   downloadProgress: DownloadProgress | null;
   logs: string[];
+  showLogs: boolean;
   notification: {
     open: boolean;
     message: string;
@@ -52,6 +51,7 @@ const App: React.FC = () => {
     ffmpegInstalled: false,
     downloadProgress: null,
     logs: [],
+    showLogs: true,
     notification: {
       open: false,
       message: '',
@@ -89,14 +89,59 @@ const App: React.FC = () => {
       }));
 
       addLog('🚀 YouTube Downloader 준비 완료!');
-      addLog('📝 최대 10개의 YouTube URL을 입력하고 다운로드 버튼을 클릭하세요.');
+      addLog('� 최대 10개의 DYouTube URL을 입력하고 다운로드 버튼을 클릭하세요.');
       
       if (!ffmpegStatus) {
         addLog('⚠️ FFmpeg가 설치되지 않았습니다. 일부 기능이 제한됩니다.');
       }
+      // yt-dlp 자동 업데이트 체크 (백그라운드)
+      checkYtDlpUpdate();
     } catch (error) {
       console.error('앱 초기화 오류:', error);
       showNotification('앱 초기화 중 오류가 발생했습니다.', 'error');
+    }
+  };
+
+  const checkYtDlpUpdate = async () => {
+    try {
+      addLog('🔄 yt-dlp.exe 업데이트를 확인합니다...');
+      const result = await window.electronAPI.updateYtDlp();
+      
+      if (result.success) {
+        if (result.updated) {
+          addLog('✨ yt-dlp.exe가 성공적으로 업데이트되었습니다!');
+          showNotification('yt-dlp.exe가 최신 버전으로 업데이트되었습니다.', 'success');
+        } else {
+          addLog('✅ yt-dlp.exe가 이미 최신 버전입니다.');
+        }
+      } else {
+        addLog(`⚠️ yt-dlp 업데이트 확인 실패: ${result.error}`);
+      }
+    } catch (error) {
+      addLog('⚠️ yt-dlp 업데이트 확인 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleRefreshFFmpegStatus = async () => {
+    try {
+      addLog('🔄 FFmpeg 설치 상태를 확인합니다...');
+      const ffmpegStatus = await window.electronAPI.checkFFmpeg();
+      
+      setState(prev => ({
+        ...prev,
+        ffmpegInstalled: ffmpegStatus
+      }));
+
+      if (ffmpegStatus) {
+        addLog('✅ FFmpeg가 설치되어 있습니다.');
+        showNotification('FFmpeg가 정상적으로 설치되어 있습니다.', 'success');
+      } else {
+        addLog('❌ FFmpeg가 설치되지 않았습니다.');
+        showNotification('FFmpeg가 설치되지 않았습니다. 설치 후 다시 확인해주세요.', 'warning');
+      }
+    } catch (error) {
+      addLog('⚠️ FFmpeg 상태 확인 중 오류가 발생했습니다.');
+      showNotification('FFmpeg 상태 확인 중 오류가 발생했습니다.', 'error');
     }
   };
 
@@ -126,6 +171,11 @@ const App: React.FC = () => {
     window.electronAPI.onDownloadCompleted((data) => {
       if (data.success) {
         addLog(`✅ 다운로드 성공: ${data.url}`);
+        // 성공한 URL을 목록에서 제거
+        setState(prev => ({
+          ...prev,
+          urls: prev.urls.filter(url => url !== data.url)
+        }));
       } else {
         addLog(`❌ 다운로드 실패: ${data.url}`);
       }
@@ -182,6 +232,21 @@ const App: React.FC = () => {
 
   const handleURLsChange = (urls: string[]) => {
     setState(prev => ({ ...prev, urls }));
+  };
+
+  const handleAddToQueue = (newUrls: string[]) => {
+    // 다운로드 중일 때 새로운 URL을 기존 목록에 추가
+    setState(prev => ({
+      ...prev,
+      urls: [...prev.urls, ...newUrls]
+    }));
+    
+    // 로그에 추가된 URL 표시
+    newUrls.forEach(url => {
+      addLog(`🔄 다운로드 큐에 추가됨: ${url}`);
+    });
+    
+    showNotification(`${newUrls.length}개의 URL이 다운로드 큐에 추가되었습니다.`, 'success');
   };
 
   const handleQualityChange = (quality: string) => {
@@ -242,20 +307,56 @@ const App: React.FC = () => {
     addLog('🧹 로그가 지워졌습니다.');
   };
 
+  const handleToggleLogs = () => {
+    setState(prev => ({ ...prev, showLogs: !prev.showLogs }));
+  };
+
   return (
-    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
-      <Container maxWidth="lg" sx={{ flex: 1, display: 'flex', flexDirection: 'column', py: 2 }}>
+    <Box sx={{ 
+      height: '100vh', 
+      display: 'flex', 
+      flexDirection: 'column', 
+      bgcolor: 'background.default'
+    }}>
+      <Container 
+        maxWidth={false} 
+        sx={{ 
+          flex: 1, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          p: { xs: 1, sm: 2 },
+          maxWidth: '100%',
+          overflow: 'auto',
+          minHeight: 0
+        }}
+      >
         {/* 헤더 */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <Header ffmpegInstalled={state.ffmpegInstalled} />
+          <Header 
+            ffmpegInstalled={state.ffmpegInstalled} 
+            onRefreshFFmpegStatus={handleRefreshFFmpegStatus}
+          />
         </motion.div>
 
         {/* 메인 콘텐츠 */}
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: { xs: 1, sm: 2 }, 
+          mt: { xs: 1, sm: 2 },
+          // 로그가 보일 때는 flex: 1로 전체 공간 사용, 숨겨질 때는 내용에 맞춰 크기 조절
+          ...(state.showLogs ? { 
+            flex: 1,
+            minHeight: 0,
+            overflow: 'hidden'
+          } : {
+            flex: 'none'
+          })
+        }}>
           {/* URL 입력 섹션 */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -265,7 +366,9 @@ const App: React.FC = () => {
             <URLInputSection
               urls={state.urls}
               onURLsChange={handleURLsChange}
-              disabled={state.isDownloading}
+              disabled={false} // 다운로드 중에도 URL 입력 가능
+              isDownloading={state.isDownloading}
+              onAddToQueue={handleAddToQueue}
             />
           </motion.div>
 
@@ -296,6 +399,8 @@ const App: React.FC = () => {
               onStartDownload={handleStartDownload}
               onStopDownload={handleStopDownload}
               onClearLogs={handleClearLogs}
+              onToggleLogs={handleToggleLogs}
+              showLogs={state.showLogs}
             />
           </motion.div>
 
@@ -314,14 +419,22 @@ const App: React.FC = () => {
           )}
 
           {/* 로그 섹션 */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            style={{ flex: 1 }}
-          >
-            <LogSection logs={state.logs} />
-          </motion.div>
+          {state.showLogs && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+              style={{ 
+                flex: 1, 
+                minHeight: '200px',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+            >
+              <LogSection logs={state.logs} />
+            </motion.div>
+          )}
         </Box>
       </Container>
 

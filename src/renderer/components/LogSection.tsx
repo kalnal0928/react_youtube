@@ -41,11 +41,27 @@ const LogSection: React.FC<LogSectionProps> = ({ logs }) => {
   };
 
   return (
-    <Paper sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Paper sx={{ 
+      p: { xs: 2, sm: 3 }, 
+      height: '100%', 
+      display: 'flex', 
+      flexDirection: 'column',
+      minHeight: 0
+    }}>
       {/* 헤더 */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: 1, 
+        mb: { xs: 1, sm: 2 },
+        flexWrap: 'wrap'
+      }}>
         <TerminalIcon color="primary" />
-        <Typography variant="h6" fontWeight="bold">
+        <Typography 
+          variant="h6" 
+          fontWeight="bold"
+          sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
+        >
           로그
         </Typography>
         <Typography variant="caption" color="text.secondary">
@@ -59,14 +75,13 @@ const LogSection: React.FC<LogSectionProps> = ({ logs }) => {
           flex: 1,
           bgcolor: '#1e1e1e',
           borderRadius: 1,
-          p: 2,
+          p: { xs: 1, sm: 2 },
           overflow: 'auto',
           fontFamily: 'Consolas, Monaco, "Courier New", monospace',
-          fontSize: '0.875rem',
+          fontSize: { xs: '0.75rem', sm: '0.875rem' },
           lineHeight: 1.4,
           color: '#ffffff',
-          maxHeight: 300,
-          minHeight: 200,
+          minHeight: { xs: 150, sm: 200 },
           border: '1px solid #333',
         }}
       >

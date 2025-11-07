@@ -14,7 +14,7 @@ module.exports = [
       extensions: ['.tsx', '.ts', '.js'],
       alias: {
         '@': path.resolve(__dirname, 'src'),
-        '@components': path.resolve(__dirname, 'src/components'),
+        '@components': path.resolve(__dirname, 'src/renderer/components'),
         '@utils': path.resolve(__dirname, 'src/utils'),
         '@types': path.resolve(__dirname, 'src/types')
       }

@@ -16,6 +16,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   stopDownload: () => ipcRenderer.invoke('stop-download'),
   getDownloadStatus: () => ipcRenderer.invoke('get-download-status'),
 
+  // yt-dlp 업데이트 관련
+  updateYtDlp: () => ipcRenderer.invoke('update-yt-dlp'),
+  openYtDlpReleases: () => ipcRenderer.invoke('open-yt-dlp-releases'),
+
   // 이벤트 리스너
   onDownloadStarted: (callback: (data: any) => void) => {
     ipcRenderer.on('download-started', (_, data) => callback(data));
@@ -53,6 +57,13 @@ export interface ElectronAPI {
   }>;
   stopDownload: () => Promise<boolean>;
   getDownloadStatus: () => Promise<boolean>;
+  updateYtDlp: () => Promise<{
+    success: boolean;
+    error?: string;
+    message?: string;
+    updated?: boolean;
+  }>;
+  openYtDlpReleases: () => Promise<{ success: boolean; error?: string }>;
   onDownloadStarted: (callback: (data: any) => void) => void;
   onDownloadProgress: (callback: (data: any) => void) => void;
   onDownloadCompleted: (callback: (data: any) => void) => void;

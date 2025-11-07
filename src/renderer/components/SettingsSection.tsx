@@ -85,22 +85,30 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
   };
 
   return (
-    <Paper sx={{ p: 3 }}>
+    <Paper sx={{ p: { xs: 2, sm: 3 } }}>
       {/* 헤더 */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: { xs: 2, sm: 3 } }}>
         <SettingsIcon color="primary" />
-        <Typography variant="h6" fontWeight="bold">
+        <Typography 
+          variant="h6" 
+          fontWeight="bold"
+          sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
+        >
           다운로드 설정
         </Typography>
       </Box>
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2 } }}>
         {/* 다운로드 경로 */}
         <Box>
           <Typography variant="subtitle1" fontWeight="medium" sx={{ mb: 1 }}>
             다운로드 경로
           </Typography>
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          <Box sx={{ 
+            display: 'flex', 
+            gap: 1,
+            flexDirection: { xs: 'column', sm: 'row' }
+          }}>
             <TextField
               fullWidth
               value={outputPath}
@@ -108,31 +116,47 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
               disabled={disabled}
               variant="outlined"
               size="small"
+              sx={{ flex: 1 }}
             />
-            <Button
-              variant="outlined"
-              onClick={handleBrowseFolder}
-              disabled={disabled}
-              startIcon={<FolderIcon />}
-              sx={{ minWidth: 120 }}
-            >
-              찾아보기
-            </Button>
-            <Tooltip title="폴더 열기">
-              <IconButton
-                onClick={handleOpenFolder}
+            <Box sx={{ 
+              display: 'flex', 
+              gap: 1,
+              flexShrink: 0
+            }}>
+              <Button
+                variant="outlined"
+                onClick={handleBrowseFolder}
                 disabled={disabled}
-                color="primary"
+                startIcon={<FolderIcon />}
+                sx={{ 
+                  minWidth: { xs: 'auto', sm: 120 },
+                  flex: { xs: 1, sm: 'none' }
+                }}
               >
-                <LaunchIcon />
-              </IconButton>
-            </Tooltip>
+                {/* 작은 화면에서는 텍스트 줄임 */}
+                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                  찾아보기
+                </Box>
+                <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+                  폴더
+                </Box>
+              </Button>
+              <Tooltip title="폴더 열기">
+                <IconButton
+                  onClick={handleOpenFolder}
+                  disabled={disabled}
+                  color="primary"
+                >
+                  <LaunchIcon />
+                </IconButton>
+              </Tooltip>
+            </Box>
           </Box>
         </Box>
 
         {/* 품질 설정 */}
         <Box>
-          <FormControl component="fieldset" disabled={disabled}>
+          <FormControl component="fieldset" disabled={disabled} sx={{ width: '100%' }}>
             <FormLabel component="legend">
               <Typography variant="subtitle1" fontWeight="medium">
                 품질 설정
@@ -141,23 +165,34 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
             <RadioGroup
               value={quality}
               onChange={(e) => onQualityChange(e.target.value)}
-              sx={{ mt: 1 }}
+              sx={{ 
+                mt: 1,
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                gap: { xs: 0.5, sm: 1 }
+              }}
             >
               {qualityOptions.map((option) => (
                 <FormControlLabel
                   key={option.value}
                   value={option.value}
-                  control={<Radio />}
+                  control={<Radio size="small" />}
                   label={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Typography 
+                        variant="body2"
+                        sx={{ 
+                          fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                          lineHeight: 1.2
+                        }}
+                      >
                         {option.label}
                       </Typography>
                       {option.needsFFmpeg && !ffmpegInstalled && (
                         <Typography
                           variant="caption"
                           color="error"
-                          sx={{ fontWeight: 'bold' }}
+                          sx={{ fontWeight: 'bold', fontSize: '0.7rem' }}
                         >
                           ⚠️
                         </Typography>
@@ -165,31 +200,62 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
                     </Box>
                   }
                   disabled={disabled || (option.needsFFmpeg && !ffmpegInstalled)}
+                  sx={{
+                    margin: 0,
+                    '& .MuiFormControlLabel-label': {
+                      fontSize: { xs: '0.8rem', sm: '0.875rem' }
+                    }
+                  }}
                 />
               ))}
             </RadioGroup>
           </FormControl>
         </Box>
 
-        {/* FFmpeg 경고 */}
-        {!ffmpegInstalled && (
-          <Alert severity="warning">
-            <Typography variant="body2">
-              <strong>FFmpeg가 설치되지 않았습니다.</strong><br />
-              고품질 병합 및 음성 추출 기능을 사용하려면 FFmpeg를 설치해주세요.
-            </Typography>
-          </Alert>
-        )}
+        {/* 컴팩트한 안내 메시지 */}
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: 1
+        }}>
+          {/* FFmpeg 경고 */}
+          {!ffmpegInstalled && (
+            <Alert 
+              severity="warning" 
+              sx={{ 
+                flex: 1,
+                py: 0.5,
+                '& .MuiAlert-message': {
+                  fontSize: '0.8rem'
+                }
+              }}
+            >
+              <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
+                FFmpeg 미설치
+              </Typography>
+              <br />
+              <Typography variant="caption">
+                고급 기능 제한됨
+              </Typography>
+            </Alert>
+          )}
 
-        {/* 사용 가능한 기능 안내 */}
-        <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 1 }}>
-          <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>
-            💡 기능 안내
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            <strong>FFmpeg 없이 사용 가능:</strong> 최고 품질 (단일 파일), 720p, 480p<br />
-            <strong>FFmpeg 필요:</strong> 최고 품질 (병합), 음성만 추출 (MP3)
-          </Typography>
+          {/* 기능 안내 */}
+          <Box sx={{ 
+            bgcolor: 'grey.50', 
+            p: 1.5, 
+            borderRadius: 1,
+            flex: 1,
+            minWidth: 0
+          }}>
+            <Typography variant="caption" fontWeight="bold" sx={{ mb: 0.5, display: 'block' }}>
+              💡 기능 안내
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.3 }}>
+              <strong>FFmpeg 불필요:</strong> 단일 파일, 720p, 480p<br />
+              <strong>FFmpeg 필요:</strong> 병합, MP3 추출
+            </Typography>
+          </Box>
         </Box>
       </Box>
     </Paper>

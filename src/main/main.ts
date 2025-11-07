@@ -19,8 +19,8 @@ function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 900,
     height: 700,
-    minWidth: 800,
-    minHeight: 600,
+    minWidth: 600,
+    minHeight: 500,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -129,12 +129,29 @@ ipcMain.handle('check-ffmpeg', async () => {
 
 // yt-dlp 경로 찾기
 function getYtDlpPath(): string {
-  if (isDev) {
-    return 'yt-dlp.exe'; // 개발 환경에서는 현재 디렉토리
-  } else {
-    // 프로덕션 환경에서는 리소스 폴더
-    return path.join(process.resourcesPath, 'bin', 'yt-dlp.exe');
+  // 여러 가능한 경로를 순서대로 확인
+  const possiblePaths = [
+    // 개발 환경: 프로젝트 루트의 bin 폴더
+    path.join(process.cwd(), 'bin', 'yt-dlp.exe'),
+    // 현재 디렉토리의 bin 폴더
+    path.join(__dirname, '..', '..', 'bin', 'yt-dlp.exe'),
+    // 프로덕션 환경: 리소스 폴더
+    path.join(process.resourcesPath, 'bin', 'yt-dlp.exe'),
+    // 현재 디렉토리
+    path.join(__dirname, 'yt-dlp.exe'),
+    // 상위 디렉토리
+    path.join(__dirname, '..', 'yt-dlp.exe')
+  ];
+
+  // 존재하는 첫 번째 경로 반환
+  for (const ytDlpPath of possiblePaths) {
+    if (fs.existsSync(ytDlpPath)) {
+      return ytDlpPath;
+    }
   }
+
+  // 모든 경로에서 찾지 못한 경우 기본값 반환
+  return path.join(process.cwd(), 'bin', 'yt-dlp.exe');
 }
 
 // 다운로드 시작
@@ -149,7 +166,7 @@ ipcMain.handle('start-download', async (_, urls: string[], quality: string, outp
     
     // yt-dlp 존재 확인
     if (!fs.existsSync(ytDlpPath)) {
-      throw new Error('yt-dlp.exe를 찾을 수 없습니다.');
+      throw new Error('yt-dlp.exe를 찾을 수 없습니다. bin/ 폴더에 yt-dlp.exe 파일이 있는지 확인하세요.');
     }
 
     // 출력 폴더 생성
@@ -316,4 +333,62 @@ ipcMain.handle('get-download-status', async () => {
 // 기본 다운로드 경로 가져오기
 ipcMain.handle('get-default-path', async () => {
   return path.join(os.homedir(), 'Downloads', 'YouTube');
+});
+
+// yt-dlp 자동 업데이트
+ipcMain.handle('update-yt-dlp', async () => {
+  try {
+    const ytDlpPath = getYtDlpPath();
+    
+    if (!fs.existsSync(ytDlpPath)) {
+      return { success: false, error: 'yt-dlp.exe를 찾을 수 없습니다.' };
+    }
+
+    const process = spawn(ytDlpPath, ['-U'], {
+      windowsHide: true
+    });
+
+    return new Promise((resolve) => {
+      let output = '';
+      let errorOutput = '';
+
+      process.stdout?.on('data', (data) => {
+        output += data.toString();
+      });
+
+      process.stderr?.on('data', (data) => {
+        errorOutput += data.toString();
+      });
+
+      process.on('close', (code) => {
+        if (code === 0) {
+          if (output.includes('is up to date')) {
+            resolve({ success: true, message: 'yt-dlp.exe가 이미 최신 버전입니다.', updated: false });
+          } else if (output.includes('Updated yt-dlp to')) {
+            resolve({ success: true, message: 'yt-dlp.exe가 성공적으로 업데이트되었습니다!', updated: true });
+          } else {
+            resolve({ success: true, message: output.trim(), updated: false });
+          }
+        } else {
+          resolve({ success: false, error: errorOutput || '업데이트 중 오류가 발생했습니다.' });
+        }
+      });
+
+      process.on('error', (error) => {
+        resolve({ success: false, error: error.message });
+      });
+    });
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : '알 수 없는 오류' };
+  }
+});
+
+// yt-dlp 업데이트 페이지 열기
+ipcMain.handle('open-yt-dlp-releases', async () => {
+  try {
+    await shell.openExternal('https://github.com/yt-dlp/yt-dlp/releases/latest');
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : '알 수 없는 오류' };
+  }
 });
