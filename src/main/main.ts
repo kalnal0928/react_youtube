@@ -205,7 +205,10 @@ ipcMain.handle('start-download', async (_, urls: string[], quality: string, outp
           currentIndex: processedIndex,
           totalCount: processedIndex + downloadQueue.length + 1,
           currentUrl: url,
-          status: 'starting'
+          status: 'starting',
+          percentage: 0,
+          speed: 'N/A',
+          eta: 'N/A'
         });
       }
 
@@ -260,12 +263,12 @@ function downloadSingleVideo(url: string, quality: string, outputPath: string, c
     const ytDlpPath = getYtDlpPath();
     
     const args = [
-      '--progress',
-      '--progress-template', '%(progress.percentage)s;%(progress.speed)s;%(progress.eta)s',
+      '--newline',
       '-o', path.join(outputPath, '%(uploader)s - %(title)s.%(ext)s'),
       '--no-warnings',
       '--encoding', 'utf-8',
-      '--no-check-certificate'
+      '--no-check-certificate',
+      '--progress'
     ];
 
     // 품질 설정
@@ -279,36 +282,75 @@ function downloadSingleVideo(url: string, quality: string, outputPath: string, c
 
     downloadProcess = spawn(ytDlpPath, args);
 
+    let lastPercentage = 0;
+    
     downloadProcess.stdout?.on('data', (data) => {
       const output = data.toString();
       
-      if (output.includes('%')) {
-        try {
-          const parts = output.trim().split(';');
-          if (parts.length >= 1) {
-            const percentage = parseFloat(parts[0].replace('%', ''));
-            const speed = parts[1] || '';
-            const eta = parts[2] || '';
-
-            if (mainWindow) {
-              mainWindow.webContents.send('download-progress', {
-                currentIndex: current - 1,
-                totalCount: total,
-                currentUrl: url,
-                status: 'downloading',
-                percentage,
-                speed,
-                eta
-              });
-            }
-          }
-        } catch (error) {
-          // 파싱 오류 무시
-        }
+      // 로그 전송
+      if (mainWindow && output.trim()) {
+        mainWindow.webContents.send('download-log', output);
       }
       
-      if (mainWindow) {
-        mainWindow.webContents.send('download-log', output);
+      // 진행률 파싱
+      try {
+        // yt-dlp 표준 출력 형식: "[download]  45.2% of 10.5MiB at 1.5MiB/s ETA 00:30"
+        if (output.includes('[download]') && output.includes('%')) {
+          // 퍼센트 추출
+          const percentMatch = output.match(/(\d+\.?\d*)%/);
+          if (percentMatch) {
+            const percentage = parseFloat(percentMatch[1]);
+            
+            // 유효한 퍼센트이고 변화가 있을 때만 업데이트
+            if (!isNaN(percentage) && percentage >= 0 && percentage <= 100 && percentage !== lastPercentage) {
+              lastPercentage = percentage;
+              
+              // 속도 추출 (예: "at 1.5MiB/s")
+              let speed = 'N/A';
+              const speedMatch = output.match(/at\s+([\d.]+\s*[KMG]iB\/s)/i);
+              if (speedMatch) {
+                speed = speedMatch[1];
+              }
+              
+              // ETA 추출 (예: "ETA 00:30")
+              let eta = 'N/A';
+              const etaMatch = output.match(/ETA\s+([\d:]+)/i);
+              if (etaMatch) {
+                eta = etaMatch[1];
+              }
+              
+              // 진행률 전송
+              if (mainWindow) {
+                mainWindow.webContents.send('download-progress', {
+                  currentIndex: current - 1,
+                  totalCount: total,
+                  currentUrl: url,
+                  status: 'downloading',
+                  percentage,
+                  speed,
+                  eta
+                });
+              }
+            }
+          }
+        }
+        // "100% of" 패턴으로 완료 감지
+        else if (output.includes('100%') && output.includes('of')) {
+          if (mainWindow && lastPercentage < 100) {
+            lastPercentage = 100;
+            mainWindow.webContents.send('download-progress', {
+              currentIndex: current - 1,
+              totalCount: total,
+              currentUrl: url,
+              status: 'downloading',
+              percentage: 100,
+              speed: 'N/A',
+              eta: '00:00'
+            });
+          }
+        }
+      } catch (error) {
+        // 파싱 오류 무시
       }
     });
 
