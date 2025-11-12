@@ -14,12 +14,14 @@
 
 ## 🔨 빌드 명령어
 
-### Windows 실행 파일 빌드
+### Windows 포터블 폴더 빌드 (권장)
 ```bash
-npm run dist:win
+npm run build
 ```
-- 결과물: `release/YouTube Downloader Setup 3.0.0.exe`
-- NSIS 인스톨러 생성
+- 결과물: `release/win-unpacked/` 폴더
+- 설치 없이 바로 실행 가능
+- 코드 서명 문제 없음
+- 폴더째로 압축하여 배포
 
 ### Mac 앱 빌드
 ```bash
@@ -69,25 +71,45 @@ npm run dist:win
 
 ```
 release/
-├── YouTube Downloader Setup 3.0.0.exe  (Windows 인스톨러)
-├── win-unpacked/                        (압축 해제된 앱)
+├── win-unpacked/                        (포터블 앱 폴더)
+│   ├── YouTube Downloader.exe          (실행 파일)
+│   ├── resources/                       (앱 리소스)
+│   │   └── bin/                         (yt-dlp.exe 포함)
+│   └── ... (기타 필요한 파일들)
 └── builder-debug.yml                    (디버그 정보)
 ```
 
+**배포 시:**
+`win-unpacked` 폴더를 ZIP으로 압축하여 배포
+
 ## 🎯 배포 방법
 
-### 방법 1: 직접 배포
-1. `release/YouTube Downloader Setup 3.0.0.exe` 파일을 사용자에게 전달
-2. 사용자가 실행하여 설치
+### 방법 1: ZIP 파일 배포 (권장)
+1. `release/win-unpacked/` 폴더를 ZIP으로 압축
+2. 파일명: `YouTube-Downloader-v3.0.0.zip`
+3. 클라우드 스토리지나 웹사이트에 업로드
+4. 사용자는 다운로드 → 압축 해제 → 실행
 
 ### 방법 2: GitHub Releases
 1. GitHub 저장소에 릴리스 생성
-2. 빌드된 파일 업로드
-3. 릴리스 노트 작성
+2. ZIP 파일 업로드
+3. 릴리스 노트 작성:
+   ```
+   ## YouTube Downloader v3.0.0
+   
+   ### 다운로드
+   - YouTube-Downloader-v3.0.0.zip 다운로드
+   - 압축 해제 후 YouTube Downloader.exe 실행
+   
+   ### 주요 기능
+   - 최대 10개 URL 동시 다운로드
+   - 실시간 진행률 표시
+   - 다양한 품질 옵션
+   ```
 
-### 방법 3: 자동 업데이트 (고급)
-- electron-updater 설정 필요
-- 서버에 업데이트 파일 호스팅
+### 방법 3: 직접 공유
+- USB나 네트워크 드라이브로 폴더 공유
+- 설치 불필요, 바로 실행 가능
 
 ## ⚙️ 빌드 설정 커스터마이징
 
@@ -181,16 +203,58 @@ Windows 앱에 디지털 서명을 추가하면 SmartScreen 경고를 줄일 수
 
 ---
 
-## 빠른 시작
+## 빠른 시작 (권장)
 
 ```bash
-# 1. 빌드
+# 포터블 폴더 자동 생성
+npm run build
+```
+
+결과: `release/win-unpacked/` 폴더 생성
+
+이 명령어 하나로:
+1. release 폴더 자동 삭제
+2. 프로젝트 빌드
+3. 포터블 폴더 생성
+
+## 배포 방법
+
+빌드 완료 후:
+
+1. `release/win-unpacked/` 폴더를 확인
+2. 폴더 이름을 `YouTube-Downloader-v3.0.0`으로 변경 (선택사항)
+3. 폴더를 ZIP으로 압축
+4. 압축 파일 배포
+
+사용자는:
+- ZIP 파일 다운로드
+- 압축 해제
+- `YouTube Downloader.exe` 실행
+
+## 추가 명령어
+
+```bash
+# 빌드만 (포터블 생성 안 함)
+npm run build:only
+
+# 캐시 삭제 후 빌드
+npm run clean
 npm run build
 
-# 2. Windows 배포 파일 생성
-npm run dist:win
+# 개발 모드 실행
+npm run dev
+```
 
-# 3. release 폴더에서 인스톨러 확인
+## 문제 해결: 코드 서명 오류
+
+코드 서명 오류가 발생하면:
+
+```bash
+# 캐시 삭제
+rmdir /s /q "%LOCALAPPDATA%\electron-builder\Cache"
+
+# 다시 빌드
+npm run build
 ```
 
 완료! 🚀

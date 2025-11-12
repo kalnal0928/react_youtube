@@ -5,17 +5,20 @@
   "main": "dist/main.js",
   "homepage": "./",
   "scripts": {
-    "build": "webpack --mode production",
+    "prebuild": "rimraf release",
+    "build": "webpack --mode production && electron-builder --win dir",
+    "build:only": "webpack --mode production",
     "build:dev": "webpack --mode development",
     "start": "webpack serve --mode development --open",
     "electron": "electron .",
     "electron:dev": "concurrently \"npm run start\" \"wait-on http://localhost:3000 && electron .\"",
     "dev": "npm run electron:dev",
-    "dist": "npm run build && electron-builder",
-    "dist:win": "npm run build && electron-builder --win",
-    "dist:mac": "npm run build && electron-builder --mac",
-    "dist:linux": "npm run build && electron-builder --linux",
+    "dist": "npm run build:only && electron-builder",
+    "dist:win": "npm run build:only && electron-builder --win",
+    "dist:mac": "npm run build:only && electron-builder --mac",
+    "dist:linux": "npm run build:only && electron-builder --linux",
     "clean": "rimraf dist release",
+    "clean:cache": "rimraf dist release && rimraf %LOCALAPPDATA%/electron-builder/Cache",
     "rebuild": "npm run clean && npm run build"
   },
   "build": {
@@ -39,10 +42,13 @@
       }
     ],
     "win": {
-      "target": "nsis",
-      "icon": "assets/icon.png",
-      "sign": null,
-      "verifyUpdateCodeSignature": false
+      "target": [
+        {
+          "target": "dir",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.png"
     },
     "mac": {
       "target": "dmg",
@@ -51,12 +57,6 @@
     "linux": {
       "target": "AppImage",
       "icon": "assets/icon.png"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
     }
   },
   "keywords": [
@@ -65,7 +65,7 @@
     "electron",
     "react"
   ],
-  "author": "YouTube Downloader Team",
+  "author": "코드깎는 국어쌤",
   "license": "MIT",
   "devDependencies": {
     "@types/react": "^18.2.45",

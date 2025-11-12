@@ -13,9 +13,11 @@ import {
   CheckCircle as CheckIcon,
   Error as ErrorIcon,
   Help as HelpIcon,
-  Update as UpdateIcon
+  Update as UpdateIcon,
+  Info as InfoIcon
 } from '@mui/icons-material';
 import FFmpegHelpDialog from './FFmpegHelpDialog';
+import AboutDialog from './AboutDialog';
 
 interface HeaderProps {
   ffmpegInstalled: boolean;
@@ -25,6 +27,7 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ ffmpegInstalled, onRefreshFFmpegStatus }) => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [showFFmpegHelp, setShowFFmpegHelp] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
 
   const handleFFmpegHelp = () => {
     setShowFFmpegHelp(true);
@@ -149,6 +152,12 @@ const Header: React.FC<HeaderProps> = ({ ffmpegInstalled, onRefreshFFmpegStatus 
             <HelpIcon />
           </IconButton>
         </Tooltip>
+
+        <Tooltip title="프로그램 정보">
+          <IconButton onClick={() => setShowAbout(true)} size="small" color="primary">
+            <InfoIcon />
+          </IconButton>
+        </Tooltip>
       </Box>
 
       {/* FFmpeg 도움말 다이얼로그 */}
@@ -156,6 +165,12 @@ const Header: React.FC<HeaderProps> = ({ ffmpegInstalled, onRefreshFFmpegStatus 
         open={showFFmpegHelp}
         onClose={handleCloseFFmpegHelp}
         onRefreshStatus={onRefreshFFmpegStatus}
+      />
+
+      {/* About 다이얼로그 */}
+      <AboutDialog
+        open={showAbout}
+        onClose={() => setShowAbout(false)}
       />
     </Box>
   );
